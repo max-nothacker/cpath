@@ -6,13 +6,31 @@ A 12-line bash function for WSL that auto-detects whether you handed it a Window
 
 It's a thin wrapper around Microsoft's built-in [`wslpath`](https://learn.microsoft.com/en-us/windows/wsl/filesystems) plus Windows' built-in `clip.exe`. No PHP, Python, Go, or Rust runtime — just bash and two tools that already ship with WSL and Windows.
 
-## Install
+## Install / update
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/max-nothacker/cpath/main/cpath.sh >> ~/.bashrc && source ~/.bashrc
+curl -fsSL https://raw.githubusercontent.com/max-nothacker/cpath/main/install.sh | bash
+source ~/.bashrc
 ```
 
-Or copy the function out of [`cpath.sh`](./cpath.sh) into your own dotfiles.
+Re-run the same command to update — the installer is idempotent and never duplicates anything in `~/.bashrc`.
+
+What it does:
+
+- Writes `cpath.sh` to `~/.local/share/cpath/cpath.sh`.
+- Adds one tagged source-line to `~/.bashrc` so every new shell picks it up.
+- Migrates legacy installs (an embedded `cpath()` block from earlier versions of this README) — backup saved at `~/.bashrc.cpath-bak`.
+
+Prefer to read the script before running it:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/max-nothacker/cpath/main/install.sh -o /tmp/cpath-install.sh
+less /tmp/cpath-install.sh
+bash /tmp/cpath-install.sh
+source ~/.bashrc
+```
+
+**Dotfile users:** copy [`cpath.sh`](./cpath.sh) anywhere you like and `source` it directly from your shell rc — no installer needed.
 
 ## Usage
 
