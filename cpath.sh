@@ -14,11 +14,23 @@
 # License: MIT
 
 cpath() {
+  local in
   if [ "$#" -eq 0 ]; then
-    echo "usage: cpath <path>" >&2
+    if [ -t 0 ]; then
+      echo "usage: cpath <path>   or   <command> | cpath" >&2
+      return 2
+    fi
+    # read first line of stdin; -r preserves backslashes; IFS= keeps whitespace
+    IFS= read -r in || true
+  else
+    in="$*"
+  fi
+  # strip any trailing CR (Windows tools sometimes pipe \r\n)
+  in="${in%$'\r'}"
+  if [ -z "$in" ]; then
+    echo "cpath: empty input" >&2
     return 2
   fi
-  local in="$*"
   local out
   if [[ "$in" =~ ^[A-Za-z]:[\\/] ]] || [[ "$in" =~ ^\\\\ ]]; then
     out=$(wslpath -u "$in") || return $?
