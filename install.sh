@@ -7,11 +7,12 @@ set -euo pipefail
 REPO_URL="https://github.com/max-nothacker/cpath"
 REPO_RAW="https://raw.githubusercontent.com/max-nothacker/cpath/main"
 INSTALL_DIR="$HOME/.local/share/cpath"
-RC="$HOME/.bashrc"
 TAG="# cpath ($REPO_URL)"
 SOURCE_LINE='[ -f "$HOME/.local/share/cpath/cpath.sh" ] && . "$HOME/.local/share/cpath/cpath.sh"'
 
 mkdir -p "$INSTALL_DIR"
+# Clean up the atomic-write temp file on any exit path.
+trap 'rm -f "$INSTALL_DIR/cpath.sh.tmp"' EXIT
 
 # Local-clone mode: if this script lives next to a cpath.sh, copy from there.
 # Works for `bash ./install.sh` from a clone. Falls back to download for `curl | bash`.
@@ -32,25 +33,39 @@ else
   chmod 0644 "$INSTALL_DIR/cpath.sh"
 fi
 
-# One-time migration: strip the embedded cpath block left by the original
-# `curl >> ~/.bashrc` install. Keeps a backup at ~/.bashrc.cpath-bak.
-if [ -f "$RC" ] && grep -q '^cpath() {' "$RC"; then
-  echo "Migrating: removing old embedded cpath block from $RC (backup: $RC.cpath-bak)"
-  sed -i.cpath-bak '/^# cpath — convert path$/,/^}$/d' "$RC"
-fi
+# Patch every shell rc that exists. Bash is the primary target on WSL but
+# detecting zsh users for free is cheap and saves them a manual step.
+patched_any=false
+for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+  [ -f "$rc" ] || continue
 
-# Idempotent rc patch: add the tagged source-line only if it's not already there.
-if [ ! -f "$RC" ] || ! grep -qF "$TAG" "$RC"; then
-  {
-    printf '\n%s\n' "$TAG"
-    printf '%s\n' "$SOURCE_LINE"
-  } >> "$RC"
-  echo "Added cpath source-line to $RC"
-else
-  echo "Source-line already present in $RC (skipped)"
+  # One-time migration: strip the legacy embedded cpath block from the original
+  # `curl >> ~/.bashrc` install. Keeps a backup at <rc>.cpath-bak.
+  if grep -q '^cpath() {' "$rc"; then
+    echo "Migrating: removing old embedded cpath block from $rc (backup: $rc.cpath-bak)"
+    sed -i.cpath-bak '/^# cpath — convert path$/,/^}$/d' "$rc"
+  fi
+
+  # Idempotent rc patch: add the tagged source-line only if it's not already there.
+  if ! grep -qF "$TAG" "$rc"; then
+    {
+      printf '\n%s\n' "$TAG"
+      printf '%s\n' "$SOURCE_LINE"
+    } >> "$rc"
+    echo "Added cpath source-line to $rc"
+    patched_any=true
+  else
+    echo "Source-line already present in $rc (skipped)"
+  fi
+done
+
+if ! $patched_any && [ ! -f "$HOME/.bashrc" ] && [ ! -f "$HOME/.zshrc" ]; then
+  echo "Note: no ~/.bashrc or ~/.zshrc found — add this line to your shell rc manually:"
+  echo "  $TAG"
+  echo "  $SOURCE_LINE"
 fi
 
 echo
 echo "OK — cpath ready at $INSTALL_DIR/cpath.sh"
-echo "Reload current shell:  source ~/.bashrc"
+echo "Reload current shell:  source ~/.bashrc   (or ~/.zshrc)"
 echo "Or open a new terminal."

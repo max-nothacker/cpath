@@ -18,8 +18,8 @@ Re-run the same command to update — the installer is idempotent and never dupl
 What it does:
 
 - Writes `cpath.sh` to `~/.local/share/cpath/cpath.sh`.
-- Adds one tagged source-line to `~/.bashrc` so every new shell picks it up.
-- Migrates legacy installs (an embedded `cpath()` block from earlier versions of this README) — backup saved at `~/.bashrc.cpath-bak`.
+- Adds one tagged source-line to `~/.bashrc` (and `~/.zshrc` if it exists) so every new shell picks it up.
+- Migrates legacy installs (an embedded `cpath()` block from earlier versions of this README) — backup saved at `<rc>.cpath-bak`.
 
 Prefer to read the script before running it:
 
@@ -31,6 +31,14 @@ source ~/.bashrc
 ```
 
 **Dotfile users:** copy [`cpath.sh`](./cpath.sh) anywhere you like and `source` it directly from your shell rc — no installer needed.
+
+## Uninstall
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/max-nothacker/cpath/main/uninstall.sh | bash
+```
+
+Removes the source-line from `~/.bashrc` and `~/.zshrc` (backups at `<rc>.cpath-bak`) and deletes `~/.local/share/cpath`.
 
 ## Usage
 
