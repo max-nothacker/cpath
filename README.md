@@ -53,7 +53,20 @@ $ cpath /home/user/repos
 
 $ cpath /mnt/c/Users/Public
 C:\Users\Public
+
+# From a pipe (first line of stdin)
+$ pwd | cpath
+\\wsl.localhost\Ubuntu\home\user
+
+# From the Windows clipboard (no args)
+# 1. Right-click a file in File Explorer → "Copy as path"
+# 2. In WSL:
+$ cpath
+/mnt/c/Users/you/something.txt
+# (same string is now back on the clipboard, ready to paste)
 ```
+
+The clipboard mode side-steps bash's backslash-eating problem entirely: paths copied from Explorer never touch the shell's argument parser, so you don't have to remember to single-quote them.
 
 ## How it works
 
