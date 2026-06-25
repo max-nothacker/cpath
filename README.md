@@ -2,7 +2,17 @@
 
 > *convert path*
 
-A 12-line bash function for WSL that auto-detects whether you handed it a Windows or a WSL path and converts it the other way. The result is printed and also copied to the Windows clipboard so you can paste it straight into File Explorer, an editor, or a chat.
+A small bash function for WSL that auto-detects whether you handed it a Windows path, a WSL path, or a `file://` URL and converts it. The result is printed and also copied to the Windows clipboard so you can paste it straight into File Explorer, an editor, or a chat.
+
+By default it converts along this graph:
+
+```
+file:// URL  ->  Windows
+Windows      ->  WSL
+WSL          ->  Windows
+```
+
+Or pass a target flag to convert to a specific form: `-i`/`--windows`, `-s`/`--wsl`, `-f`/`--fileurl`.
 
 It's a thin wrapper around Microsoft's built-in [`wslpath`](https://learn.microsoft.com/en-us/windows/wsl/filesystems) plus Windows' built-in `clip.exe`. No PHP, Python, Go, or Rust runtime — just bash and two tools that already ship with WSL and Windows.
 
@@ -54,6 +64,18 @@ $ cpath /home/user/repos
 $ cpath /mnt/c/Users/Public
 C:\Users\Public
 
+# A file:// URL (e.g. copied from a browser or OneDrive) -> Windows path
+$ cpath 'file:///C:/Users/you/OneDrive%20-%20Org/notes.pdf'
+C:\Users\you\OneDrive - Org\notes.pdf
+
+# Force a specific target form with -i / -s / -f
+$ cpath -s 'C:\path'                 # to WSL
+/mnt/c/path
+$ cpath -i /home/user/repos          # to Windows
+\\wsl.localhost\Ubuntu\home\user\repos
+$ cpath -f /home/user/notes.pdf      # to a file:// URL
+file://wsl.localhost/Ubuntu/home/user/notes.pdf
+
 # From a pipe (first line of stdin)
 $ pwd | cpath
 \\wsl.localhost\Ubuntu\home\user
@@ -66,15 +88,22 @@ $ cpath
 # (same string is now back on the clipboard, ready to paste)
 ```
 
+Paths with **spaces** work as long as the backslashes survive your shell — so
+quote a Windows path (`cpath 'C:\a b\c.md'`) or use forward slashes
+(`cpath C:/a b/c.md`). An *unquoted* backslash path can't be recovered (bash
+eats the backslashes before `cpath` sees them); `cpath` detects this and points
+you at quoting or clipboard mode.
+
 The clipboard mode side-steps bash's backslash-eating problem entirely: paths copied from Explorer never touch the shell's argument parser, so you don't have to remember to single-quote them.
 
 ## How it works
 
-1. A regex checks whether the input starts with `<letter>:[\/]` or `\\` → treats it as Windows and calls `wslpath -u`.
-2. Anything else is treated as a WSL path and converted with `wslpath -w` (backslash form — what File Explorer wants).
-3. The result is piped through `clip.exe`, which Windows exposes to WSL via interop.
+1. The input form is detected: `file://…` → file URL; `<letter>:[\/]` or `\\…` → Windows; anything else with a slash → WSL.
+2. With no target flag the default graph picks the target (file → Windows, Windows → WSL, WSL → Windows). A `-i`/`-s`/`-f` flag overrides it.
+3. The input is resolved to a Windows path (via `wslpath` for WSL paths, percent-decoding for file URLs), then emitted in the target form — `wslpath -u` for WSL, percent-encoded `file:///…` for a file URL, or the Windows path itself.
+4. The result is piped through `clip.exe`, which Windows exposes to WSL via interop.
 
-That's the whole tool.
+Everything leans on Microsoft's built-in `wslpath`; the only added logic is the file-URL percent encode/decode. That's the whole tool.
 
 ## Prior art
 
