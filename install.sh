@@ -39,11 +39,22 @@ patched_any=false
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
   [ -f "$rc" ] || continue
 
-  # One-time migration: strip the legacy embedded cpath block from the original
-  # `curl >> ~/.bashrc` install. Keeps a backup at <rc>.cpath-bak.
+  # One-time migration: strip a legacy embedded cpath() block (and the header
+  # comment directly above it) left by old installs that appended the function
+  # to the rc directly. Detection and removal both key off the `cpath() {` line,
+  # so they can never disagree — keying removal off a header comment could
+  # mismatch, falsely report a migration, and never actually remove the block.
   if grep -q '^cpath() {' "$rc"; then
-    echo "Migrating: removing old embedded cpath block from $rc (backup: $rc.cpath-bak)"
-    sed -i.cpath-bak '/^# cpath — convert path$/,/^}$/d' "$rc"
+    echo "Migrating: removing old embedded cpath() block from $rc (backup: $rc.cpath-bak)"
+    cp "$rc" "$rc.cpath-bak"
+    awk '
+      function flush(   i) { for (i = 0; i < n; i++) print buf[i]; n = 0 }
+      drop            { if ($0 ~ /^}$/) drop = 0; next }   # in old body: skip to closing brace
+      /^cpath\(\) \{/ { n = 0; drop = 1; next }            # function head: drop buffered header comments
+      /^#/            { buf[n++] = $0; next }               # buffer comments (may be the header)
+                      { flush(); print }                   # other line: emit buffered comments, then it
+      END             { flush() }
+    ' "$rc.cpath-bak" > "$rc"
   fi
 
   # Idempotent rc patch: add the tagged source-line only if it's not already there.
